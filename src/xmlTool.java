@@ -1,165 +1,256 @@
-import org.dom4j.*;
-import org.dom4j.io.OutputFormat;
-import org.dom4j.io.SAXReader;
-import org.dom4j.io.XMLWriter;
 
-import javax.swing.plaf.synth.Region;
+
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
+import org.w3c.dom.Node;
+import org.w3c.dom.NodeList;
+import org.xml.sax.SAXException;
+
+import javax.xml.parsers.DocumentBuilder;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.transform.Transformer;
+import javax.xml.transform.TransformerConfigurationException;
+import javax.xml.transform.TransformerException;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
 import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
-import java.util.Iterator;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 
-public class xmlTool {
-    public xmlTool() {
 
+public class XMLTool {
+    static final String outputEncoding = "UTF-8";
+
+    public static Document getDocument(String Path) throws ParserConfigurationException, IOException, SAXException {
+        //Instantiate the Factory
+        DocumentBuilderFactory dbf = DocumentBuilderFactory.newInstance();
+        //Instantiate the Builders
+        DocumentBuilder db = dbf.newDocumentBuilder();
+        //Handling Validation Errors
+        OutputStreamWriter errorWriter = new OutputStreamWriter(System.err, outputEncoding);
+        db.setErrorHandler(new MyErrorHandler(new PrintWriter(errorWriter, true)));
+        //Get a Parser and Parse the File
+        Document doc = db.parse(new File(Path));
+        return doc;
     }
 
-    public static Document getDocument(String path) throws DocumentException {
-        SAXReader reader = new SAXReader();
-        Document document = reader.read(new File(path));
-        return document;
-    }
+    //region read xml
+    public static List<Student> getStudentList(Document document, String TagName) {
+        List<Student> studentList = new ArrayList<>();
+        NodeList nlist = document.getElementsByTagName(TagName);
+        for (int i = 0; i < nlist.getLength(); i++) {
+            Student student = new Student();
+            Node node = nlist.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                System.err.println("Error: Search node not of element type");
+                System.exit(22);
+            }
 
-    //region read
-    public static List<Student> getStudentList(String elementName, Document document, List<Student> studentList) {
-        Element root = document.getRootElement();
-        for (Iterator<Element> it = root.elementIterator("student"); it.hasNext(); ) {
-            Element student = it.next();
-            Student stu = new Student();
-            //获取Name值
-            String Name = student.element("Name").getText();
-            //对象赋值
-            stu.setName(Name);
-            //获取Age值
-            int Age = Integer.parseInt(student.element("Age").getText());
-            //对象赋值
-            stu.setAge(Age);
-            //获取Major值
-            String Major = student.element("Major").getText();
-            //对象赋值
-            stu.setMajor(Major);
-            //region 输出展示
-            System.out.println("student");
-            System.out.println("Name:" + Name);
-            System.out.println("Age:" + Age);
-            System.out.println("Major:" + Major);
-            //endregion
-            //添加进list
-            studentList.add(stu);
+            System.out.println(node.getNodeName());
+            NodeList subNlist = node.getChildNodes();
+            for (int j = 0; j < subNlist.getLength(); j++) {
+                Node subnode = subNlist.item(j);
+                if (subnode.getNodeType() == Node.ELEMENT_NODE) {
+                    System.out.println(subnode.getNodeName() + ":" + subnode.getTextContent());
+                    if (subnode.getNodeName().equals("Name")) {
+                        student.setName(subnode.getTextContent());
+                    }
+                    if (subnode.getNodeName().equals("Age")) {
+                        student.setAge(Integer.parseInt(subnode.getTextContent()));
+                    }
+                    if (subnode.getNodeName().equals("Major")) {
+                        student.setMajor(subnode.getTextContent());
+                    }
+                }
+            }
+            studentList.add(student);
         }
         return studentList;
     }
+    //endregion
+    //region search xml
 
-    public static List<Teacher> getTeacherList(String elementName, Document document, List<Teacher> teacherList) {
-        Element root = document.getRootElement();
-        for (Iterator<Element> it = root.elementIterator("teacher"); it.hasNext(); ) {
-            Element student = it.next();
-            Teacher tea = new Teacher();
-            //获取Name值
-            String Name = student.element("Name").getText();
-            //对象赋值
-            tea.setName(Name);
-            //获取Age值
-            int Age = Integer.parseInt(student.element("Age").getText());
-            //对象赋值
-            tea.setAge(Age);
-            //region 输出展示
-            System.out.println("teacher");
-            System.out.println("Name:" + Name);
-            System.out.println("Age:" + Age);
-            //endregion
-            //添加进list
-            teacherList.add(tea);
+    public static Student getStudent(Document document, String TagName, String studentName) {
+        Student student = new Student();
+        Node searchNode = getNode(document, TagName, studentName);
+        if (searchNode != null) {
+            NodeList nlist = searchNode.getChildNodes();
+            for (int i = 0; i < nlist.getLength(); i++) {
+                Node subnode = nlist.item(i);
+                System.out.println(subnode.getNodeName() + ":" + subnode.getTextContent());
+                if (subnode.getNodeName().equals("Name")) {
+                    student.setName(subnode.getTextContent());
+                }
+                if (subnode.getNodeName().equals("Age")) {
+                    student.setAge(Integer.parseInt(subnode.getTextContent()));
+                }
+                if (subnode.getNodeName().equals("Major")) {
+                    student.setMajor(subnode.getTextContent());
+                }
+            }
         }
-        return teacherList;
+        return student;
+    }
+
+    public static Node getNode(Document document, String TagName, String str) {
+        NodeList nlist = document.getElementsByTagName(TagName);
+        for (int i = 0; i < nlist.getLength(); i++) {
+            Node node = nlist.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                System.err.println("Error: Search node not of element type");
+                System.exit(22);
+            }
+
+            if (!node.hasChildNodes()) return null;
+
+            NodeList sublist = node.getChildNodes();
+            for (int j = 0; j < sublist.getLength(); j++) {
+                Node subnode = sublist.item(j);
+                if (subnode.getNodeType() == Node.ELEMENT_NODE) {
+                    if (subnode.getTextContent().equals(str))
+                        return subnode.getParentNode();
+                }
+            }
+        }
+        return null;
     }
 
     //endregion
     //region add
-    public static void addStudent(Document document, String Name, int Age, String Major, String path) {
-        DocumentFactory documentFactory = DocumentFactory.getInstance();
-        Element root = document.getRootElement();
-        //创建一级子节点
-        Element oneElement = documentFactory.createElement("student");
-        //创建一级子节点下的Name节点
-        Element eName = documentFactory.createElement("Name");
-        //为Name节点设置文本值
-        eName.setText(Name);
-        //添加eName至父节点
-        oneElement.add(eName);
-        //创建一级子节点下的Age节点
-        Element eAge = documentFactory.createElement("Age");
-        //为Name节点设置文本值
-        eAge.setText(String.valueOf(Age));
-        //添加eAge至父节点
-        oneElement.add(eAge);
-        //创建一级子节点下的Major节点
-        Element eMajor = documentFactory.createElement("Major");
-        //为Major节点设置文本值
-        eMajor.setText(Major);
-        //添加eMajor至父节点
-        oneElement.add(eMajor);
+    public static void addStudent(Document document, String tagName, String Name, int Age, String Major, String path) throws TransformerException {
+        NodeList nodeList = document.getElementsByTagName(tagName);
+        Element student = document.createElement("student");
 
-        root.add(oneElement);
-        saveXML(path, document);
+        //create element Name
+        Element nameEle = document.createElement("Name");
+        //set text value
+        nameEle.setTextContent(Name);
+        //add to parent node
+        student.appendChild(nameEle);
+
+        //create element Age
+        Element ageEle = document.createElement("Age");
+        //set text value
+        ageEle.setTextContent(String.valueOf(Age));
+        //add to parent node
+        student.appendChild(ageEle);
+
+        //create element Major
+        Element majorEle = document.createElement("Major");
+        //set text value
+        majorEle.setTextContent(Major);
+        //add to parent node
+        student.appendChild(majorEle);
+
+        //add to parent node
+        nodeList.item(0).appendChild(student);
+
+        //save xml
+        saveXml(document, path);
+
     }
-    //endregion
 
-    //region update
-    public static void updateStudentName(String elementName, Document document, String name,String updateName, String path) {
-        Element root = document.getRootElement();
-        int id = 0;
-        for (Iterator it = root.elementIterator(elementName); it.hasNext(); ) {
-            Element ele = (Element) it.next();
-            if (ele.element("Name").getText().equals(name)) {
-                ele.element("Name").setText(updateName);
-                break;
+    //endregion
+    //region delete
+    public static void deleteNode(Document document, String TagName, String str, String path) throws TransformerException {
+        NodeList nlist = document.getElementsByTagName(TagName);
+        for (int i = 0; i < nlist.getLength(); i++) {
+            Node node = nlist.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                System.err.println("Error: Search node not of element type");
+                System.exit(22);
+            }
+            NodeList sublist = node.getChildNodes();
+            for (int j = 0; j < sublist.getLength(); j++) {
+                Node subnode = sublist.item(j);
+                if (subnode.getNodeType() == Node.ELEMENT_NODE) {
+                    if (subnode.getTextContent().equals(str)) {
+                        Node pNode = subnode.getParentNode();
+                        pNode.getParentNode().removeChild(pNode);
+                        System.out.println("delete " + subnode.getTextContent());
+                        saveXml(document, path);
+                        return;
+                    }
+
+                }
             }
         }
-        saveXML(path, document);
+
     }
 
     //endregion
     //region update
-    public static void deleteStudent(String elementName, Document document, String name, String path) {
+    public static void updateNode(Document document, String TagName, String str, String updateStr, String path) throws TransformerException {
+        NodeList nlist = document.getElementsByTagName(TagName);
+        for (int i = 0; i < nlist.getLength(); i++) {
+            Node node = nlist.item(i);
+            if (node.getNodeType() != Node.ELEMENT_NODE) {
+                System.err.println("Error: Search node not of element type");
+                System.exit(22);
+            }
+            NodeList sublist = node.getChildNodes();
+            for (int j = 0; j < sublist.getLength(); j++) {
+                Node subnode = sublist.item(j);
+                if (subnode.getNodeType() == Node.ELEMENT_NODE) {
+                    if (subnode.getTextContent().equals(str)) {
+                        subnode.setTextContent(updateStr);
+                        System.out.println("update " + str + " to " + updateStr);
+                        saveXml(document, path);
+                        return;
+                    }
 
-        //获取根节点
-        Element root = document.getRootElement();
-        int id = 0;
-        for (Iterator it = root.elementIterator(elementName); it.hasNext(); ) {
-            Element ele = (Element) it.next();
-            if (ele.element("Name").getText().equals(name)) {
-                ele.getParent().remove(ele);
-                break;
+                }
             }
         }
-        saveXML(path, document);
+
     }
 
     //endregion
-    //Save XML
-    public static void saveXML(String path, Document document) {
-        try {
-            OutputFormat format = OutputFormat.createCompactFormat(); //build format
-            format.setEncoding("utf-8"); //set format
-            XMLWriter writer = new XMLWriter(new FileWriter(path), format);
-            writer.write(document);
-            writer.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+    //save xml method
+    public static void saveXml(Document document, String path) throws TransformerException {
+        // Instantiate a factory class
+        TransformerFactory tff = TransformerFactory.newInstance();
+        // Instantiate a write-back class
+        Transformer tf = tff.newTransformer();
+        // Write back method transform()
+        tf.transform(new DOMSource(document), new StreamResult(path));
+        System.out.println("Save to " + path);
     }
 
-    public static void treeWalk(Element element) {
-        for (int i = 0, size = element.nodeCount(); i < size; i++) {
-            Node node = element.node(i);
-            if (node instanceof Element) {
-                treeWalk((Element) node);
+    private void printlnCommon(Node n) {
+        System.out.print(" nodeName=\"" + n.getNodeName() + "\"");
+
+        String val = n.getNamespaceURI();
+        if (val != null) {
+            System.out.print(" uri=\"" + val + "\"");
+        }
+
+        val = n.getPrefix();
+
+        if (val != null) {
+            System.out.print(" pre=\"" + val + "\"");
+        }
+
+        val = n.getLocalName();
+        if (val != null) {
+            System.out.print(" local=\"" + val + "\"");
+        }
+
+        val = n.getNodeValue();
+        if (val != null) {
+            System.out.print(" nodeValue=");
+            if (val.trim().equals("")) {
+                // Whitespace
+                System.out.print("[WS]");
             } else {
-                // do something…
-                System.out.println(node.getText());
+                System.out.print("\"" + n.getNodeValue() + "\"");
             }
         }
+        System.out.println();
     }
 }

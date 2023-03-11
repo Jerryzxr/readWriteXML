@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
 <item>
     <student>
         <Name>张四</Name>
@@ -22,5 +22,10 @@
         <Name>甲乙</Name>
         <Age>22</Age>
         <Major>语文</Major>
+    </student>
+    <student>
+        <Name>甲乙丙丁</Name>
+        <Age>222</Age>
+        <Major>天文</Major>
     </student>
 </item>
